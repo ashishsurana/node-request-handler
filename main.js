@@ -26,8 +26,6 @@ app.get('/api/request/', function (req, res, next) {
             resp: res
         });
 
-        console.log("Difference", reqList[0].time - Date.now());
-
         setTimeout(function () {
             // deleting on completion
             reqList.forEach(function (r, i) {
