@@ -2,13 +2,13 @@ var express = require('express');
 var app = express();
 var bodyParser = require('body-parser')
 
-let connList = {};
+let reqList = []
 
 app.use(bodyParser.urlencoded({
     extended: true
 }));
 
-let temp ;
+let temp;
 
 app.get('/api/request/', function (req, res, next) {
     let args = req.query;
@@ -20,30 +20,54 @@ app.get('/api/request/', function (req, res, next) {
         res.status(500).end();
     } else {
         // adding to global object array
-        connList[args.connId] = String(Date.now() + Number(args.connId));
-        
+        reqList.push({
+            connId: args.connId,
+            time: Number(Date.now() + Number(args.timeout)),
+            resp: res
+        });
+
+        console.log("Difference", reqList[0].time - Date.now());
+
         setTimeout(function () {
             // deleting on completion
-            delete connList[args.connId];
+            reqList.forEach(function (r, i) {
+                if (r.connId == args.connId) {
+                    delete reqList[i];
+                }
+            });
 
             res.send({ "status": "ok" });
         }, args.timeout);
     }
 });
 
-app.get('/api/serverStatus', function(req, res, next){
-    console.log("List", connList)
-    res.send(connList);
+app.get('/api/serverStatus', function (req, res, next) {
+    let resultList = {};
+
+    reqList.forEach(function (r) {
+        resultList[r.connId] = String(r.time - Date.now());
+    });
+
+    res.send(resultList);
 });
 
-app.put('/api/kill', function(req, res, next){
-    console.log("Req", req.body);
+app.put('/api/kill', function (req, res, next) {
     let conId = req.body.connId;
-    
-    let result = {"status":""}
+
+    let result = { "status": "" }
+
+    let flag = false;
+
+    reqList.forEach(function (r) {
+        if (r.connId == conId) {
+            flag = true;
+            result["status"] = "killed";
+            r.resp.send(result);
+        }
+    });
 
     // not in the list
-    if(connList[conId] == undefined){
+    if (!flag) {
         result["status"] = "invalid connection Id : " + String(conId);
     } else {
         result["status"] = "ok"
