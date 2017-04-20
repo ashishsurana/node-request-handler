@@ -56,9 +56,10 @@ app.put('/api/kill', function (req, res, next) {
 
     let flag = false;
 
-    reqList.forEach(function (r) {
+    reqList.forEach(function (r, i) {
         if (r.connId == conId) {
             flag = true;
+            delete reqList[i];
             result["status"] = "killed";
             r.resp.send(result);
         }
