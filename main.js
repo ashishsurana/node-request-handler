@@ -1,8 +1,10 @@
 var express = require('express');
 var app = express();
 var bodyParser = require('body-parser')
+var HashMap = require('hashmap')
 
 let reqList = []
+let map  = new HashMap();
 
 app.use(bodyParser.urlencoded({
     extended: true
@@ -19,12 +21,9 @@ app.get('/api/request/', function (req, res, next) {
         console.log("Bad request");
         res.status(500).end();
     } else {
-        // adding to global object array
-        reqList.push({
-            connId: args.connId,
-            time: Number(Date.now() + Number(args.timeout)),
-            resp: res
-        });
+
+        map.set(String(args.connId), {time: Number(Date.now() + Number(args.timeout)),
+            resp: res})
 
         setTimeout(function () {
             // deleting on completion
@@ -34,6 +33,8 @@ app.get('/api/request/', function (req, res, next) {
                 }
             });
 
+            map.remove(args.connId);
+
             res.send({ "status": "ok" });
         }, args.timeout);
     }
@@ -42,9 +43,12 @@ app.get('/api/request/', function (req, res, next) {
 app.get('/api/serverStatus', function (req, res, next) {
     let resultList = {};
 
-    reqList.forEach(function (r) {
-        resultList[r.connId] = String(r.time - Date.now());
-    });
+    // reqList.forEach(function (r) {
+    //     resultList[r.connId] = String(r.time - Date.now());
+    // });
+    map.forEach(function(val, key){
+        resultList[key] = String(val.time - Date.now());
+    })
 
     res.send(resultList);
 });
@@ -56,14 +60,13 @@ app.put('/api/kill', function (req, res, next) {
 
     let flag = false;
 
-    reqList.forEach(function (r, i) {
-        if (r.connId == conId) {
-            flag = true;
-            delete reqList[i];
-            result["status"] = "killed";
-            r.resp.send(result);
-        }
-    });
+    let val = map.get(conId) 
+    if(val){
+        flag = true;
+        map.remove(conId);
+        result["status"] = "killed";
+        val.resp.send(result);
+    }
 
     // not in the list
     if (!flag) {
